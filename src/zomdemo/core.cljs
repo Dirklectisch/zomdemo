@@ -16,9 +16,9 @@
 (defmulti read-fn om/dispatch)
 
 (defmethod read-fn :search/results
-  [{:keys [state ast] :as env} k {:keys [text]}]
+  [{:keys [state ast query] :as env} k {:keys [text]}]
   (merge
-    {:value (get @state k [])}
+    {:value (om/db->tree query (get @state k []) @state)}
     (when-not (or (string/blank? text)
                   (< (count text) 3))
       {:search ast})))
@@ -27,9 +27,23 @@
 
 ;; components
 
+(defui Result
+  static om/Ident
+  (ident [this {:keys [id]}]
+    [:resource/by-id id])
+  static om/IQuery
+  (query [_]
+    [:id :title])
+  Object
+  (render [this]
+    (let [{:keys [id title]} (om/props this)]
+      (dom/li #js {:key id} (-> title :trans :nl)))))
+
+(def result (om/factory Result))
+
 (defn result-list [results]
   (dom/ul #js {:key "result-list"}
-    (map #(dom/li #js {:key %} %) results)))
+    (map result results)))
 
 (defn search-field [this text]
   (dom/input
@@ -45,7 +59,8 @@
     {:text ""})
   static om/IQuery
   (query [_]
-    '[(:search/results {:text ?text})])
+    (let [params '{:text ?text}]
+      `[({:search/results ~(om/get-query Result)} ~params)]))
   Object
   (render [this]
     (let [{:keys [search/results]} (om/props this)]
@@ -57,7 +72,7 @@
 
 ;; remote sync
 
-(def base-url "https://www.entoen.nu/api/search?text=")
+(def base-url "https://www.entoen.nu/api/search?format=simple&text=")
 
 (defn jsonp
   ([uri]
@@ -70,7 +85,7 @@
 (defn search-loop [c]
   (go-loop [[text cb] (<! c)]
     (let [results (<! (jsonp (str base-url text)))]
-      (cb {:search/results results}))
+      (cb {:search/results (js->clj results :keywordize-keys true)}))
     (recur (<! c))))
 
 (defn send-to-chan [c]

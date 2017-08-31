@@ -8,13 +8,13 @@
   (go
     (println (<! (jsonp (str base-url text))))))
 
-(defn try-query
-  ([state query] (parser {:state state} query))
-  ([query] (try-query (atom default-state) query))
-  ([] (try-query '[(:search/results {:text "canon"})])))
-
 (defn inspect-state []
   (deref (om/app-state core/reconciler)))
 
 (defn inspect-query []
   (om/get-query (om/app-root core/reconciler)))
+
+(defn try-query
+  ([state query] (parser {:state state} query))
+  ([query] (try-query (atom (inspect-state)) query))
+  ([] (try-query (inspect-query))))
