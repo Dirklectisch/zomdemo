@@ -4,8 +4,7 @@
             [om.dom :as dom]
             [om.next :as om :refer [defui]]
             [cljs.core.async :as async :refer [<! >! put! chan]]
-            [clojure.string :as string]
-            zomdemo.repl)
+            [clojure.string :as string])
   (:import [goog Uri]
            [goog.net Jsonp]))
 
@@ -68,9 +67,17 @@
                      (om/set-query! this
                        {:params {:text (.. e -target -value)}}))}))
 
+(defn category-select [cat]
+  (dom/label nil
+    (dom/input #js{:key (:name cat)
+                   :type "checkbox"
+                   :name "category"
+                   :value (:name cat)} nil)
+    (:name cat)))
+
 (defn category-list [cats]
-  (dom/ul #js {:key "category-list"}
-    (map #(dom/li nil (:name %)) cats)))
+  (dom/div #js {:key "category-list"}
+    (map category-select cats)))
 
 (defui SearchWidget
   static om/IQueryParams
