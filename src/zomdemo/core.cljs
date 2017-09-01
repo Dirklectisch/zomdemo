@@ -13,15 +13,30 @@
 
 ;; parser
 
+(defn search-categories [search-results]
+  (->> (group-by #(last (:category %)) search-results)
+       (mapv (fn [[name items]] {:name name :count (count items)}))))
+
 (defmulti read-fn om/dispatch)
 
 (defmethod read-fn :search/results
   [{:keys [state ast query] :as env} k {:keys [text]}]
-  (merge
-    {:value (om/db->tree query (get @state k []) @state)}
-    (when-not (or (string/blank? text)
-                  (< (count text) 3))
-      {:search ast})))
+  (let [st @state]
+    (merge
+      {:value (om/db->tree query
+                           (get st k [])
+                           st)}
+      (when-not (or (string/blank? text)
+                    (< (count text) 3))
+        {:search ast}))))
+
+(defmethod read-fn :search/categories
+  [{:keys [state query] :as env} key params]
+  (let [st @state
+        search-results (om/db->tree [:id :category]
+                                    (get st :search/results [])
+                                    st)]
+    {:value (search-categories search-results)}))
 
 (def parser (om/parser {:read read-fn}))
 
@@ -53,6 +68,10 @@
                      (om/set-query! this
                        {:params {:text (.. e -target -value)}}))}))
 
+(defn category-list [cats]
+  (dom/ul #js {:key "category-list"}
+    (map #(dom/li nil (:name %)) cats)))
+
 (defui SearchWidget
   static om/IQueryParams
   (params [_]
@@ -60,12 +79,14 @@
   static om/IQuery
   (query [_]
     (let [params '{:text ?text}]
-      `[({:search/results ~(om/get-query Result)} ~params)]))
+      `[({:search/results ~(om/get-query Result)} ~params)
+        :search/categories]))
   Object
   (render [this]
-    (let [{:keys [search/results]} (om/props this)]
+    (let [{:keys [search/results search/categories]} (om/props this)]
       (dom/div nil
         (dom/h2 nil "Search")
+        (category-list categories)
         (cond->
           [(search-field this (:text (om/get-params this)))]
           (not (empty? results)) (conj (result-list results)))))))
