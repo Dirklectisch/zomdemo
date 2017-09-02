@@ -67,33 +67,42 @@
                      (om/set-query! this
                        {:params {:text (.. e -target -value)}}))}))
 
-(defn category-select [cat]
-  (dom/label nil
-    (dom/input #js{:key (:name cat)
-                   :type "checkbox"
-                   :name "category"
-                   :value (:name cat)} nil)
-    (:name cat)))
+(defn category-select [this cat]
+  (let [name (:name cat)]
+    (dom/div #js {:key name}
+      (dom/input #js{:type "checkbox"
+                     :name "category"
+                     :value name
+                     :onChange (fn [e]
+                                 (let [params (om/get-params this)
+                                       cats (vec (:cats params))]
+                                   (->> (if (.. e -target -checked)
+                                          (conj cats name)
+                                          (filter #(not (#{name} %)) cats))
+                                        (#(om/set-query! this
+                                            {:params (assoc params :cats %)})))))})
+      (dom/label nil name))))
 
-(defn category-list [cats]
-  (dom/div #js {:key "category-list"}
-    (map category-select cats)))
+(defn category-list [this cats]
+  (dom/fieldset #js {:key "category-list"}
+    (dom/legend nil "Select Categories")
+    (map #(category-select this %) cats)))
 
 (defui SearchWidget
   static om/IQueryParams
   (params [_]
-    {:text ""})
+    {:text "" :cats []})
   static om/IQuery
   (query [_]
-    (let [params '{:text ?text}]
+    (let [params '{:text ?text :cats ?cats}]
       `[({:search/results ~(om/get-query Result)} ~params)
-        :search/categories]))
+        (:search/categories ~params)]))
   Object
   (render [this]
     (let [{:keys [search/results search/categories]} (om/props this)]
       (dom/div nil
         (dom/h2 nil "Search")
-        (category-list categories)
+        (category-list this categories)
         (cond->
           [(search-field this (:text (om/get-params this)))]
           (not (empty? results)) (conj (result-list results)))))))
