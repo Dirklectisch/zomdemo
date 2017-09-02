@@ -72,20 +72,22 @@
                      (set-params! this {:text (.. e -target -value)}))}))
 
 (defn category-select [this cat]
-  (let [name (:name cat)]
+  (let [name (:name cat)
+        count (:count cat)]
     (dom/div #js {:key name}
       (dom/input #js{:type "checkbox"
                      :name "category"
                      :value name
                      :onChange (fn [e]
                                  (let [params (om/get-params this)
-                                       cats (vec (:cats params))]
+                                       cats (vec (:cats params))
+                                       key-name (keyword name)]
                                    (->> (if (.. e -target -checked)
-                                          (conj cats (keyword name))
-                                          (filter #(not (#{name} %)) cats))
-                                        (#(om/set-query! this
-                                            {:params (assoc params :cats %)})))))})
-      (dom/label nil name))))
+                                          (conj cats key-name)
+                                          (filter #(not (#{key-name} %)) cats))
+                                        (assoc {} :cats)
+                                        (set-params! this))))})
+      (dom/label nil (str name " (" count ") ")))))
 
 (defn category-list [this cats]
   (dom/fieldset #js {:key "category-list"}
