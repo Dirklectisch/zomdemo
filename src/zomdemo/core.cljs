@@ -41,6 +41,11 @@
 
 ;; components
 
+(defn set-params! [this params]
+  (->>
+    {:params (merge (om/get-params this) params)}
+    (om/set-query! this)))
+
 (defui Result
   static om/Ident
   (ident [this {:keys [id]}]
@@ -64,8 +69,7 @@
     #js {:key "search-field"
          :value text
          :onChange (fn [e]
-                     (om/set-query! this
-                       {:params {:text (.. e -target -value)}}))}))
+                     (set-params! this {:text (.. e -target -value)}))}))
 
 (defn category-select [this cat]
   (let [name (:name cat)]
@@ -77,7 +81,7 @@
                                  (let [params (om/get-params this)
                                        cats (vec (:cats params))]
                                    (->> (if (.. e -target -checked)
-                                          (conj cats name)
+                                          (conj cats (keyword name))
                                           (filter #(not (#{name} %)) cats))
                                         (#(om/set-query! this
                                             {:params (assoc params :cats %)})))))})
@@ -109,7 +113,11 @@
 
 ;; remote sync
 
-(def base-url "https://www.entoen.nu/api/search?format=simple&text=")
+(def base-url "https://www.entoen.nu/api/search?format=simple")
+
+(defn req-url [text cats]
+  (str base-url "&text=" text
+    (apply str (map #(str "&cat=" %) cats))))
 
 (defn jsonp
   ([uri]
@@ -120,8 +128,8 @@
      c)))
 
 (defn search-loop [c]
-  (go-loop [[text cb] (<! c)]
-    (let [results (<! (jsonp (str base-url text)))]
+  (go-loop [[text cats cb] (<! c)]
+    (let [results (<! (jsonp (req-url text cats)))]
       (cb {:search/results (js->clj results :keywordize-keys true)}))
     (recur (<! c))))
 
@@ -129,8 +137,9 @@
   (fn [{:keys [search]} cb]
     (when search
       (let [{[search] :children} (om/query->ast search)
-            text (get-in search [:params :text])]
-        (put! c [text cb])))))
+            text (get-in search [:params :text])
+            cats (get-in search [:params :cats])]
+        (put! c [text cats cb])))))
 
 (def send-chan (chan))
 
