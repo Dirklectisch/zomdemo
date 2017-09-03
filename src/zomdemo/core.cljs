@@ -56,7 +56,9 @@
   Object
   (render [this]
     (let [{:keys [id title]} (om/props this)]
-      (dom/li #js {:key id} (-> title :trans :nl)))))
+      (dom/li #js {:key id} (if-let [dutch (-> title :trans :nl)]
+                              dutch
+                              title)))))
 
 (def result (om/factory Result))
 
@@ -87,7 +89,7 @@
                                           (filter #(not (#{key-name} %)) cats))
                                         (assoc {} :cats)
                                         (set-params! this))))})
-      (dom/label nil (str name " (" count ") ")))))
+      (dom/label nil (str name " (" count "+) ")))))
 
 (defn category-list [this cats]
   (dom/fieldset #js {:key "category-list"}
@@ -115,7 +117,7 @@
 
 ;; remote sync
 
-(def base-url "https://www.entoen.nu/api/search?format=simple")
+(def base-url "https://www.entoen.nu/api/search?format=simple&limit=100")
 
 (defn req-url [text cats]
   (str base-url "&text=" text
