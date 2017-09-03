@@ -46,6 +46,13 @@
     {:params (merge (om/get-params this) params)}
     (om/set-query! this)))
 
+(defn translate [title]
+  (let [{:keys [trans]} title]
+    (condp #(contains? %2 %1) trans
+      :nl (:nl trans)
+      :en (:en trans)
+      (str title))))
+
 (defui Result
   static om/Ident
   (ident [this {:keys [id]}]
@@ -56,9 +63,7 @@
   Object
   (render [this]
     (let [{:keys [id title]} (om/props this)]
-      (dom/li #js {:key id} (if-let [dutch (-> title :trans :nl)]
-                              dutch
-                              title)))))
+      (dom/li #js {:key id} (translate title)))))
 
 (def result (om/factory Result))
 
